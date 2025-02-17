@@ -117,11 +117,21 @@
             .catch(error => console.error('Error:', error));
         }
 
+        let productionChart = null;
+        let shiftsChart = null;
+
         function updateCharts(data) {
             let ctx1 = document.getElementById('productionChart').getContext('2d');
             let ctx2 = document.getElementById('shiftsChart').getContext('2d');
 
-            new Chart(ctx1, {
+            if (productionChart) {
+                productionChart.destroy();
+            }
+            if (shiftsChart) {
+                shiftsChart.destroy();
+            }
+
+            productionChart = new Chart(ctx1, {
                 type: 'bar',
                 data: {
                     labels: ["Available Shifts", "1 Extra Shift"],
@@ -139,7 +149,7 @@
                 }
             });
 
-            new Chart(ctx2, {
+            shiftsChart = new Chart(ctx2, {
                 type: 'doughnut',
                 data: {
                     labels: ["Required Shifts", "Available Shifts", "Extra Shifts Due to Downtime"],
