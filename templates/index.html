@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battery Processing Calculator</title>
+    <title>Battery Production Statistics</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -13,11 +13,11 @@
             margin: 40px;
         }
         .container {
-            max-width: 600px;
+            max-width: 800px;
             background: white;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
             margin: auto;
         }
         input {
@@ -46,107 +46,92 @@
         canvas {
             margin-top: 20px;
         }
-        select {
-            padding: 5px;
-            margin-bottom: 15px;
-        }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2 id="title">Battery Processing Calculator</h2>
-        
-        <label for="language">🌍 Select Language:</label>
-        <select id="language" onchange="changeLanguage()">
-            <option value="en">English</option>
-            <option value="de">Deutsch</option>
-        </select>
+        <h2>📊 Battery Production Statistics</h2>
 
-        <input type="number" id="num_batteries" placeholder="Enter total number of batteries"><br>
-        <input type="number" id="processing_capacity_per_hour" placeholder="Enter processing capacity per hour"><br>
+        <input type="number" id="num_batteries" placeholder="Total number of batteries"><br>
+        <input type="number" id="processing_capacity_per_hour" placeholder="Processing capacity per hour"><br>
+        <input type="number" id="available_shifts" placeholder="Available shifts"><br>
         <input type="number" id="oldest_pallet_time_minutes" placeholder="Oldest pallet time (minutes)"><br>
-        <input type="number" id="available_shifts" placeholder="Enter available shifts"><br>
-        
-        <button onclick="calculate()" id="calculate-btn">Calculate</button>
-        
+        <input type="number" id="downtime_minutes" placeholder="Downtime (minutes)"><br>
+
+        <button onclick="calculate()">Calculate</button>
+
         <div id="result"></div>
-        
-        <canvas id="timeChart" width="400" height="200"></canvas>
+
+        <canvas id="productionChart"></canvas>
+        <canvas id="shiftsChart"></canvas>
     </div>
 
     <script>
-        const translations = {
-            "en": {
-                "title": "Battery Processing Calculator",
-                "num_batteries": "Enter total number of batteries",
-                "processing_capacity_per_hour": "Enter processing capacity per hour",
-                "oldest_pallet_time_minutes": "Oldest pallet time (minutes)",
-                "available_shifts": "Enter available shifts",
-                "calculate-btn": "Calculate",
-                "warning": "⚠️ WARNING: The batteries will exceed the 72-hour limit!",
-                "success": "✅ The process is within the allowed time.",
-                "total_processing_time": "Total processing time per battery",
-                "total_production_time": "Total time required for production",
-                "remaining_time": "Remaining time before exceeding limit",
-                "required_shifts": "Required shifts",
-                "extra_shifts": "Extra shifts needed",
-                "overtime_time": "Overtime will occur at"
-            },
-            "de": {
-                "title": "Batterie-Verarbeitungsrechner",
-                "num_batteries": "Geben Sie die Gesamtanzahl der Batterien ein",
-                "processing_capacity_per_hour": "Verarbeitungskapazität pro Stunde eingeben",
-                "oldest_pallet_time_minutes": "Ältester Palettenzeit (Minuten)",
-                "available_shifts": "Geben Sie verfügbare Schichten ein",
-                "calculate-btn": "Berechnen",
-                "warning": "⚠️ WARNUNG: Die Batterien überschreiten die 72-Stunden-Grenze!",
-                "success": "✅ Der Prozess liegt innerhalb des zulässigen Zeitraums.",
-                "total_processing_time": "Gesamtverarbeitungszeit pro Batterie",
-                "total_production_time": "Gesamtzeit für die Produktion",
-                "remaining_time": "Verbleibende Zeit bis zur Grenzüberschreitung",
-                "required_shifts": "Erforderliche Schichten",
-                "extra_shifts": "Zusätzliche Schichten erforderlich",
-                "overtime_time": "Überzeit tritt auf um"
-            }
-        };
-
-        function changeLanguage() {
-            let lang = document.getElementById("language").value;
-            document.getElementById("title").innerText = translations[lang]["title"];
-            document.getElementById("num_batteries").placeholder = translations[lang]["num_batteries"];
-            document.getElementById("processing_capacity_per_hour").placeholder = translations[lang]["processing_capacity_per_hour"];
-            document.getElementById("oldest_pallet_time_minutes").placeholder = translations[lang]["oldest_pallet_time_minutes"];
-            document.getElementById("available_shifts").placeholder = translations[lang]["available_shifts"];
-            document.getElementById("calculate-btn").innerText = translations[lang]["calculate-btn"];
-        }
-
         function calculate() {
             let num_batteries = document.getElementById("num_batteries").value;
             let processing_capacity_per_hour = document.getElementById("processing_capacity_per_hour").value;
-            let oldest_pallet_time_minutes = document.getElementById("oldest_pallet_time_minutes").value;
             let available_shifts = document.getElementById("available_shifts").value;
-            let timezone_offset = new Date().getTimezoneOffset();
+            let oldest_pallet_time_minutes = document.getElementById("oldest_pallet_time_minutes").value;
+            let downtime_minutes = document.getElementById("downtime_minutes").value;
 
             fetch('/calculate', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `num_batteries=${num_batteries}&processing_capacity_per_hour=${processing_capacity_per_hour}&oldest_pallet_time_minutes=${oldest_pallet_time_minutes}&available_shifts=${available_shifts}&timezone_offset=${timezone_offset}`
+                body: `num_batteries=${num_batteries}&processing_capacity_per_hour=${processing_capacity_per_hour}&available_shifts=${available_shifts}&oldest_pallet_time_minutes=${oldest_pallet_time_minutes}&downtime_minutes=${downtime_minutes}`
             })
             .then(response => response.json())
             .then(data => {
-                let lang = document.getElementById("language").value;
                 document.getElementById("result").innerHTML = `
-                    <p><strong>${data.warning_message}</strong></p>
-                    <p>🔹 ${translations[lang]["total_processing_time"]}: <strong>${data.total_processing_time} hours</strong></p>
-                    <p>🔹 ${translations[lang]["total_production_time"]}: <strong>${data.total_production_time} hours</strong></p>
-                    <p>🔹 ${translations[lang]["remaining_time"]}: <strong>${data.remaining_time} hours</strong></p>
-                    <p>🔹 ${translations[lang]["required_shifts"]}: <strong>${data.required_shifts}</strong></p>
-                    <p>🔹 ${translations[lang]["extra_shifts"]}: <strong>${data.extra_shifts}</strong></p>
-                    <p>⏳ **${translations[lang]["overtime_time"]}:** <strong>${data.overtime_time}</strong></p>
+                    <p>✅ Total processing time per battery: <strong>${data.total_processing_time} hours</strong></p>
+                    <p>✅ Total production time: <strong>${data.total_production_time} hours</strong></p>
+                    <p>⚠️ Required shifts: <strong>${data.required_shifts}</strong></p>
+                    <p>⚠️ Extra shifts needed: <strong>${data.extra_shifts}</strong></p>
+                    <p>📈 Production rate (available shifts): <strong>${data.production_rate_remaining_shifts} batteries/hour</strong></p>
+                    <p>🚀 Production rate (1 extra shift): <strong>${data.production_rate_with_extra_shift} batteries/hour</strong></p>
+                    <p>⏳ Extra shifts needed due to downtime: <strong>${data.extra_shifts_due_to_downtime}</strong></p>
                 `;
+
+                updateCharts(data);
             })
             .catch(error => console.error('Error:', error));
+        }
+
+        function updateCharts(data) {
+            let ctx1 = document.getElementById('productionChart').getContext('2d');
+            let ctx2 = document.getElementById('shiftsChart').getContext('2d');
+
+            new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: ["Available Shifts", "1 Extra Shift"],
+                    datasets: [{
+                        label: "Batteries Produced per Hour",
+                        data: [data.production_rate_remaining_shifts, data.production_rate_with_extra_shift],
+                        backgroundColor: ["#007bff", "#28a745"]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ["Required Shifts", "Available Shifts", "Extra Shifts Due to Downtime"],
+                    datasets: [{
+                        data: [data.required_shifts, data.available_shifts, data.extra_shifts_due_to_downtime],
+                        backgroundColor: ["#ff0000", "#007bff", "#ffa500"]
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
         }
     </script>
 
