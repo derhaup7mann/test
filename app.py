@@ -40,6 +40,7 @@ def calculate():
         available_shifts = int(request.form['available_shifts'])
         oldest_pallet_time_minutes = int(request.form['oldest_pallet_time_minutes'])
         downtime_minutes = int(request.form['downtime_minutes'])
+        timezone_offset = int(request.form['timezone_offset'])  # Offset de fus orar în minute
         lang = request.form['language']  # Preluăm limba selectată
 
         # Convertire minute în ore
@@ -70,11 +71,14 @@ def calculate():
         # Calcul ture suplimentare necesare din cauza downtime-ului
         extra_shifts_due_to_downtime = downtime_hours / 8  # câte ture suplimentare sunt necesare
 
-        # Calcul data și ora exactă când paletul va atinge 72h
+        # Calcul data și ora exactă când paletul va atinge 72h (în UTC)
         utc_now = datetime.utcnow()
         oldest_pallet_timestamp = utc_now - timedelta(minutes=oldest_pallet_time_minutes)
         overtime_timestamp = oldest_pallet_timestamp + timedelta(hours=high_temp_limit)
-        overtime_formatted = overtime_timestamp.strftime('%Y-%m-%d %H:%M:%S')  # Formatăm data și ora
+
+        # Aplicăm fusul orar local
+        local_overtime_timestamp = overtime_timestamp - timedelta(minutes=timezone_offset)
+        overtime_formatted = local_overtime_timestamp.strftime('%Y-%m-%d %H:%M:%S')
 
         return jsonify({
             translations[lang]["total_processing_time"]: round(total_processing_time, 2),
