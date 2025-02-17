@@ -20,7 +20,7 @@
             box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
             margin: auto;
         }
-        input {
+        select, input {
             padding: 10px;
             margin: 5px;
             width: 80%;
@@ -48,16 +48,24 @@
         }
     </style>
 </head>
-<body>
+<body onload="getLocalTimeOffset()">
 
     <div class="container">
         <h2>📊 Battery Production Statistics</h2>
+
+        <label for="language">🌍 Select Language:</label>
+        <select id="language">
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+        </select>
 
         <input type="number" id="num_batteries" placeholder="Total number of batteries"><br>
         <input type="number" id="processing_capacity_per_hour" placeholder="Processing capacity per hour"><br>
         <input type="number" id="available_shifts" placeholder="Available shifts"><br>
         <input type="number" id="oldest_pallet_time_minutes" placeholder="Oldest pallet time (minutes)"><br>
         <input type="number" id="downtime_minutes" placeholder="Downtime (minutes)"><br>
+
+        <input type="hidden" id="timezone_offset" name="timezone_offset">
 
         <button onclick="calculate()">Calculate</button>
 
@@ -68,28 +76,37 @@
     </div>
 
     <script>
+        function getLocalTimeOffset() {
+            let timezoneOffset = new Date().getTimezoneOffset(); // Offset în minute față de UTC
+            document.getElementById("timezone_offset").value = timezoneOffset;
+        }
+
         function calculate() {
+            let language = document.getElementById("language").value;
             let num_batteries = document.getElementById("num_batteries").value;
             let processing_capacity_per_hour = document.getElementById("processing_capacity_per_hour").value;
             let available_shifts = document.getElementById("available_shifts").value;
             let oldest_pallet_time_minutes = document.getElementById("oldest_pallet_time_minutes").value;
             let downtime_minutes = document.getElementById("downtime_minutes").value;
+            let timezone_offset = document.getElementById("timezone_offset").value;
 
             fetch('/calculate', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `num_batteries=${num_batteries}&processing_capacity_per_hour=${processing_capacity_per_hour}&available_shifts=${available_shifts}&oldest_pallet_time_minutes=${oldest_pallet_time_minutes}&downtime_minutes=${downtime_minutes}`
+                body: `num_batteries=${num_batteries}&processing_capacity_per_hour=${processing_capacity_per_hour}&available_shifts=${available_shifts}&oldest_pallet_time_minutes=${oldest_pallet_time_minutes}&downtime_minutes=${downtime_minutes}&timezone_offset=${timezone_offset}&language=${language}`
             })
             .then(response => response.json())
             .then(data => {
-                document.getElementById("result").innerHTML = `
-                    <p>✅ Total processing time per battery: <strong>${data.total_processing_time} hours</strong></p>
-                    <p>✅ Total production time: <strong>${data.total_production_time} hours</strong></p>
-                    <p>⚠️ Required shifts: <strong>${data.required_shifts}</strong></p>
-                    <p>⚠️ Extra shifts needed: <strong>${data.extra_shifts}</strong></p>
-                    <p>📈 Production rate (available shifts): <strong>${data.production_rate_remaining_shifts} batteries/hour</strong></p>
-                    <p>🚀 Production rate (1 extra shift): <strong>${data.production_rate_with_extra_shift} batteries/hour</strong></p>
-                    <p>⏳ Extra shifts needed due to downtime: <strong>${data.extra_shifts_due_to_downtime}</strong></p>
+                let resultDiv = document.getElementById("result");
+                resultDiv.innerHTML = `
+                    <p>✅ Total processing time per battery: <strong>${data["Total processing time per battery"]} hours</strong></p>
+                    <p>✅ Total production time: <strong>${data["Total time required for production"]} hours</strong></p>
+                    <p>⚠️ Required shifts: <strong>${data["Required shifts"]}</strong></p>
+                    <p>⚠️ Extra shifts needed: <strong>${data["Extra shifts needed"]}</strong></p>
+                    <p>📈 Production rate (available shifts): <strong>${data["Production rate with available shifts"]} batteries/hour</strong></p>
+                    <p>🚀 Production rate (1 extra shift): <strong>${data["Production rate with 1 extra shift"]} batteries/hour</strong></p>
+                    <p>⏳ Extra shifts needed due to downtime: <strong>${data["Extra shifts needed due to downtime"]}</strong></p>
+                    <p>🕒 Overtime will occur at: <strong>${data["Overtime will occur at"]}</strong></p>
                 `;
 
                 updateCharts(data);
@@ -107,7 +124,7 @@
                     labels: ["Available Shifts", "1 Extra Shift"],
                     datasets: [{
                         label: "Batteries Produced per Hour",
-                        data: [data.production_rate_remaining_shifts, data.production_rate_with_extra_shift],
+                        data: [data["Production rate with available shifts"], data["Production rate with 1 extra shift"]],
                         backgroundColor: ["#007bff", "#28a745"]
                     }]
                 },
@@ -124,7 +141,7 @@
                 data: {
                     labels: ["Required Shifts", "Available Shifts", "Extra Shifts Due to Downtime"],
                     datasets: [{
-                        data: [data.required_shifts, data.available_shifts, data.extra_shifts_due_to_downtime],
+                        data: [data["Required shifts"], data["Extra shifts needed"], data["Extra shifts needed due to downtime"]],
                         backgroundColor: ["#ff0000", "#007bff", "#ffa500"]
                     }]
                 },
