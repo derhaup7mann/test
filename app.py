@@ -1,94 +1,65 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battery Processing Calculator</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f4f4f4;
-            margin: 40px;
-        }
-        .container {
-            max-width: 600px;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-            margin: auto;
-        }
-        input {
-            padding: 10px;
-            margin: 5px;
-            width: 80%;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        button {
-            padding: 10px 20px;
-            margin: 10px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #result {
-            margin-top: 20px;
-            font-size: 18px;
-        }
-    </style>
-</head>
-<body>
+from flask import Flask, render_template, request, jsonify
+from datetime import datetime, timedelta
 
-    <div class="container">
-        <h2>Battery Processing Calculator</h2>
+app = Flask(__name__)
 
-        <input type="number" id="num_batteries" placeholder="Enter total number of batteries"><br>
-        <input type="number" id="processing_capacity_per_hour" placeholder="Enter processing capacity per hour"><br>
-        <input type="number" id="available_shifts" placeholder="Enter available shifts"><br>
-        <input type="number" id="oldest_pallet_time_minutes" placeholder="Oldest pallet time (minutes)"><br>
-        <input type="number" id="downtime_minutes" placeholder="Enter downtime (minutes)"><br>
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-        <button onclick="calculate()">Calculate</button>
+@app.route('/calculate', methods=['POST'])
+def calculate():
+    try:
+        # Preluare date din formular
+        num_batteries = int(request.form['num_batteries'])
+        processing_capacity_per_hour = int(request.form['processing_capacity_per_hour'])
+        available_shifts = int(request.form['available_shifts'])
+        oldest_pallet_time_minutes = int(request.form['oldest_pallet_time_minutes'])
+        downtime_minutes = int(request.form['downtime_minutes'])
 
-        <div id="result"></div>
-    </div>
+        # Convertire minute în ore
+        oldest_pallet_time_hours = oldest_pallet_time_minutes / 60
+        downtime_hours = downtime_minutes / 60  # Convertim downtime în ore
 
-    <script>
-        function calculate() {
-            let num_batteries = document.getElementById("num_batteries").value;
-            let processing_capacity_per_hour = document.getElementById("processing_capacity_per_hour").value;
-            let available_shifts = document.getElementById("available_shifts").value;
-            let oldest_pallet_time_minutes = document.getElementById("oldest_pallet_time_minutes").value;
-            let downtime_minutes = document.getElementById("downtime_minutes").value;
+        # Timpuri fixe
+        high_temp_time = 20  # ore
+        formation_time = 2 + 10/60  # 2 ore și 10 minute
+        high_temp_limit = 72  # Limita maximă de 72 ore
 
-            fetch('/calculate', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `num_batteries=${num_batteries}&processing_capacity_per_hour=${processing_capacity_per_hour}&available_shifts=${available_shifts}&oldest_pallet_time_minutes=${oldest_pallet_time_minutes}&downtime_minutes=${downtime_minutes}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById("result").innerHTML = `
-                    <p>🔹 Total processing time per battery: <strong>${data.total_processing_time} hours</strong></p>
-                    <p>🔹 Total time required for production: <strong>${data.total_production_time} hours</strong></p>
-                    <p>🔹 Required shifts: <strong>${data.required_shifts}</strong></p>
-                    <p>🔹 Extra shifts needed: <strong>${data.extra_shifts}</strong></p>
-                    <p>🔹 📈 Production rate with remaining shifts: <strong>${data.production_rate_remaining_shifts} batteries/hour</strong></p>
-                    <p>🔹 🚀 Production rate with one extra shift: <strong>${data.production_rate_with_extra_shift} batteries/hour</strong></p>
-                    <p>🔹 ⚠️ Extra shifts needed due to downtime: <strong>${data.extra_shifts_due_to_downtime}</strong></p>
-                `;
-            })
-            .catch(error => console.error('Error:', error));
-        }
-    </script>
+        # Calcul total timp procesare
+        total_processing_time = high_temp_time + formation_time
 
-</body>
-</html>
+        # Calcul ore necesare pentru producție
+        total_production_time = num_batteries / processing_capacity_per_hour
+
+        # Calcul ture necesare
+        required_shifts = total_production_time / 8  # presupunem că o tură = 8 ore
+        extra_shifts = max(0, required_shifts - available_shifts)
+
+        # Calcul baterii pe oră cu turele disponibile rămase
+        if available_shifts > 0:
+            production_rate_remaining_shifts = num_batteries / (available_shifts * 8)
+        else:
+            production_rate_remaining_shifts = 0
+
+        # Calcul baterii pe oră în cazul unei ture suplimentare
+        production_rate_with_extra_shift = num_batteries / ((available_shifts + 1) * 8)
+
+        # Calcul ture suplimentare necesare din cauza downtime-ului
+        extra_shifts_due_to_downtime = downtime_hours / 8  # câte ture suplimentare sunt necesare
+
+        return jsonify({
+            "total_processing_time": round(total_processing_time, 2),
+            "total_production_time": round(total_production_time, 2),
+            "required_shifts": round(required_shifts, 2),
+            "extra_shifts": round(extra_shifts, 2),
+            "production_rate_remaining_shifts": round(production_rate_remaining_shifts, 2),
+            "production_rate_with_extra_shift": round(production_rate_with_extra_shift, 2),
+            "extra_shifts_due_to_downtime": round(extra_shifts_due_to_downtime, 2),
+        })
+    
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=10000, debug=True)
