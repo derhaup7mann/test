@@ -3,6 +3,28 @@ from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
+# Definim traducerile pentru limbi
+translations = {
+    "en": {
+        "total_processing_time": "Total processing time per battery",
+        "total_production_time": "Total time required for production",
+        "required_shifts": "Required shifts",
+        "extra_shifts": "Extra shifts needed",
+        "production_rate_remaining_shifts": "Production rate with available shifts",
+        "production_rate_with_extra_shift": "Production rate with 1 extra shift",
+        "extra_shifts_due_to_downtime": "Extra shifts needed due to downtime"
+    },
+    "de": {
+        "total_processing_time": "Gesamtverarbeitungszeit pro Batterie",
+        "total_production_time": "Gesamtzeit für die Produktion",
+        "required_shifts": "Erforderliche Schichten",
+        "extra_shifts": "Zusätzliche Schichten erforderlich",
+        "production_rate_remaining_shifts": "Produktionsrate mit verfügbaren Schichten",
+        "production_rate_with_extra_shift": "Produktionsrate mit 1 zusätzlicher Schicht",
+        "extra_shifts_due_to_downtime": "Zusätzliche Schichten erforderlich aufgrund von Ausfallzeiten"
+    }
+}
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -16,6 +38,7 @@ def calculate():
         available_shifts = int(request.form['available_shifts'])
         oldest_pallet_time_minutes = int(request.form['oldest_pallet_time_minutes'])
         downtime_minutes = int(request.form['downtime_minutes'])
+        lang = request.form['language']  # Preluăm limba selectată
 
         # Convertire minute în ore
         oldest_pallet_time_hours = oldest_pallet_time_minutes / 60
@@ -37,10 +60,7 @@ def calculate():
         extra_shifts = max(0, required_shifts - available_shifts)
 
         # Calcul baterii pe oră cu turele disponibile rămase
-        if available_shifts > 0:
-            production_rate_remaining_shifts = num_batteries / (available_shifts * 8)
-        else:
-            production_rate_remaining_shifts = 0
+        production_rate_remaining_shifts = num_batteries / (available_shifts * 8) if available_shifts > 0 else 0
 
         # Calcul baterii pe oră în cazul unei ture suplimentare
         production_rate_with_extra_shift = num_batteries / ((available_shifts + 1) * 8)
@@ -49,13 +69,13 @@ def calculate():
         extra_shifts_due_to_downtime = downtime_hours / 8  # câte ture suplimentare sunt necesare
 
         return jsonify({
-            "total_processing_time": round(total_processing_time, 2),
-            "total_production_time": round(total_production_time, 2),
-            "required_shifts": round(required_shifts, 2),
-            "extra_shifts": round(extra_shifts, 2),
-            "production_rate_remaining_shifts": round(production_rate_remaining_shifts, 2),
-            "production_rate_with_extra_shift": round(production_rate_with_extra_shift, 2),
-            "extra_shifts_due_to_downtime": round(extra_shifts_due_to_downtime, 2),
+            translations[lang]["total_processing_time"]: round(total_processing_time, 2),
+            translations[lang]["total_production_time"]: round(total_production_time, 2),
+            translations[lang]["required_shifts"]: round(required_shifts, 2),
+            translations[lang]["extra_shifts"]: round(extra_shifts, 2),
+            translations[lang]["production_rate_remaining_shifts"]: round(production_rate_remaining_shifts, 2),
+            translations[lang]["production_rate_with_extra_shift"]: round(production_rate_with_extra_shift, 2),
+            translations[lang]["extra_shifts_due_to_downtime"]: round(extra_shifts_due_to_downtime, 2),
         })
     
     except Exception as e:
