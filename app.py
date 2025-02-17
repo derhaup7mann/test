@@ -12,7 +12,8 @@ translations = {
         "extra_shifts": "Extra shifts needed",
         "production_rate_remaining_shifts": "Production rate with available shifts",
         "production_rate_with_extra_shift": "Production rate with 1 extra shift",
-        "extra_shifts_due_to_downtime": "Extra shifts needed due to downtime"
+        "extra_shifts_due_to_downtime": "Extra shifts needed due to downtime",
+        "overtime_time": "Overtime will occur at"
     },
     "de": {
         "total_processing_time": "Gesamtverarbeitungszeit pro Batterie",
@@ -21,7 +22,8 @@ translations = {
         "extra_shifts": "Zusätzliche Schichten erforderlich",
         "production_rate_remaining_shifts": "Produktionsrate mit verfügbaren Schichten",
         "production_rate_with_extra_shift": "Produktionsrate mit 1 zusätzlicher Schicht",
-        "extra_shifts_due_to_downtime": "Zusätzliche Schichten erforderlich aufgrund von Ausfallzeiten"
+        "extra_shifts_due_to_downtime": "Zusätzliche Schichten erforderlich aufgrund von Ausfallzeiten",
+        "overtime_time": "Überzeit tritt auf um"
     }
 }
 
@@ -68,6 +70,12 @@ def calculate():
         # Calcul ture suplimentare necesare din cauza downtime-ului
         extra_shifts_due_to_downtime = downtime_hours / 8  # câte ture suplimentare sunt necesare
 
+        # Calcul data și ora exactă când paletul va atinge 72h
+        utc_now = datetime.utcnow()
+        oldest_pallet_timestamp = utc_now - timedelta(minutes=oldest_pallet_time_minutes)
+        overtime_timestamp = oldest_pallet_timestamp + timedelta(hours=high_temp_limit)
+        overtime_formatted = overtime_timestamp.strftime('%Y-%m-%d %H:%M:%S')  # Formatăm data și ora
+
         return jsonify({
             translations[lang]["total_processing_time"]: round(total_processing_time, 2),
             translations[lang]["total_production_time"]: round(total_production_time, 2),
@@ -76,6 +84,7 @@ def calculate():
             translations[lang]["production_rate_remaining_shifts"]: round(production_rate_remaining_shifts, 2),
             translations[lang]["production_rate_with_extra_shift"]: round(production_rate_with_extra_shift, 2),
             translations[lang]["extra_shifts_due_to_downtime"]: round(extra_shifts_due_to_downtime, 2),
+            translations[lang]["overtime_time"]: overtime_formatted
         })
     
     except Exception as e:
