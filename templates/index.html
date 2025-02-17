@@ -39,7 +39,7 @@
         button:hover {
             background-color: #0056b3;
         }
-        #result {
+        #result, #graph-interpretation {
             margin-top: 20px;
             font-size: 18px;
         }
@@ -73,11 +73,13 @@
 
         <canvas id="productionChart"></canvas>
         <canvas id="shiftsChart"></canvas>
+
+        <div id="graph-interpretation"></div>
     </div>
 
     <script>
         function getLocalTimeOffset() {
-            let timezoneOffset = new Date().getTimezoneOffset(); // Offset în minute față de UTC
+            let timezoneOffset = new Date().getTimezoneOffset();
             document.getElementById("timezone_offset").value = timezoneOffset;
         }
 
@@ -110,6 +112,7 @@
                 `;
 
                 updateCharts(data);
+                interpretGraph(data, language);
             })
             .catch(error => console.error('Error:', error));
         }
@@ -141,7 +144,7 @@
                 data: {
                     labels: ["Required Shifts", "Available Shifts", "Extra Shifts Due to Downtime"],
                     datasets: [{
-                        data: [data["Required shifts"], data["Extra shifts needed"], data["Extra shifts needed due to downtime"]],
+                        data: [data["Required shifts"], data["Available shifts"], data["Extra shifts needed due to downtime"]],
                         backgroundColor: ["#ff0000", "#007bff", "#ffa500"]
                     }]
                 },
@@ -149,6 +152,29 @@
                     responsive: true
                 }
             });
+        }
+
+        function interpretGraph(data, language) {
+            let interpretation = "";
+            let requiredShifts = data["Required shifts"];
+            let availableShifts = data["Available shifts"];
+            let extraShiftsDowntime = data["Extra shifts needed due to downtime"];
+
+            if (requiredShifts > availableShifts) {
+                interpretation = (language === "en") 
+                    ? "🔴 Required Shifts are higher than Available Shifts. ➝ Add more shifts to complete production on time."
+                    : "🔴 Erforderliche Schichten sind höher als verfügbare Schichten. ➝ Fügen Sie weitere Schichten hinzu, um die Produktion pünktlich abzuschließen.";
+            } else if (extraShiftsDowntime > 0) {
+                interpretation = (language === "en") 
+                    ? "🟠 Downtime is significantly affecting production. ➝ Reduce downtime or add more shifts."
+                    : "🟠 Ausfallzeiten beeinflussen die Produktion erheblich. ➝ Reduzieren Sie die Ausfallzeiten oder fügen Sie weitere Schichten hinzu.";
+            } else {
+                interpretation = (language === "en") 
+                    ? "🔵 Everything is optimal. No extra shifts needed."
+                    : "🔵 Alles ist optimal. Keine zusätzlichen Schichten erforderlich.";
+            }
+
+            document.getElementById("graph-interpretation").innerHTML = `<p><strong>📊 ${interpretation}</strong></p>`;
         }
     </script>
 
